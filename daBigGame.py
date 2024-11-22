@@ -1,4 +1,1 @@
-
-acoustic = "dumb"
-
-hello mother
+print("hello world!")
