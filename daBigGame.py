@@ -1,5 +1,4 @@
 import pygame
-import math
 import sys
 
 # Initialize Pygame
@@ -8,101 +7,103 @@ pygame.init()
 # Screen dimensions
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Mini Golf")
+pygame.display.set_caption("Racecar Game")
 
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-GREEN = (34, 139, 34)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
+GREEN = (0, 255, 0)
 
-# Ball properties
-BALL_RADIUS = 10
-ball_pos = [100, 300]
-ball_velocity = [0, 0]
-friction = 0.98
-
-# Hole properties
-HOLE_RADIUS = 15
-hole_pos = [700, 300]
-
-# Game variables
+# FPS and clock
+FPS = 60
 clock = pygame.time.Clock()
-running = True
-shooting = False
 
-# Font
-font = pygame.font.Font(None, 36)
+# Car dimensions
+CAR_WIDTH, CAR_HEIGHT = 50, 100
 
-# Helper functions
-def draw_ball():
-    pygame.draw.circle(screen, RED, (int(ball_pos[0]), int(ball_pos[1])), BALL_RADIUS)
+# Player 1 car
+player1 = pygame.Rect(WIDTH // 4 - CAR_WIDTH // 2, HEIGHT - CAR_HEIGHT - 10, CAR_WIDTH, CAR_HEIGHT)
 
-def draw_hole():
-    pygame.draw.circle(screen, BLACK, hole_pos, HOLE_RADIUS)
+# Player 2 car
+player2 = pygame.Rect(3 * WIDTH // 4 - CAR_WIDTH // 2, HEIGHT - CAR_HEIGHT - 10, CAR_WIDTH, CAR_HEIGHT)
 
-def draw_power_line(start_pos, end_pos):
-    pygame.draw.line(screen, BLUE, start_pos, end_pos, 3)
+# Speeds
+car_speed = 5
 
-def calculate_distance(pos1, pos2):
-    return math.sqrt((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2)
-
-def show_message(text, color, position):
-    message = font.render(text, True, color)
-    screen.blit(message, position)
+# Finish line
+finish_line = pygame.Rect(0, 50, WIDTH, 10)
 
 # Game loop
-while running:
-    screen.fill(GREEN)
-    draw_hole()
-    draw_ball()
-    
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == pygame.MOUSEBUTTONDOWN and not shooting:
-            start_pos = pygame.mouse.get_pos()
-        if event.type == pygame.MOUSEBUTTONUP and not shooting:
-            end_pos = pygame.mouse.get_pos()
-            dx = start_pos[0] - end_pos[0]
-            dy = start_pos[1] - end_pos[1]
-            ball_velocity = [dx * 0.1, dy * 0.1]
-            shooting = True
+def game_loop():
+    player1_speed = [0, 0]
+    player2_speed = [0, 0]
 
-    # Ball movement
-    if shooting:
-        ball_pos[0] += ball_velocity[0]
-        ball_pos[1] += ball_velocity[1]
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
 
-        # Apply friction
-        ball_velocity[0] *= friction
-        ball_velocity[1] *= friction
+        # Player 1 controls (Arrow keys)
+        keys = pygame.key.get_pressed()
+        player1_speed = [0, 0]
+        player2_speed = [0, 0]
 
-        # Stop the ball if it's slow enough
-        if abs(ball_velocity[0]) < 0.1 and abs(ball_velocity[1]) < 0.1:
-            ball_velocity = [0, 0]
-            shooting = False
+        if keys[pygame.K_LEFT]:
+            player1_speed[0] = -car_speed
+        if keys[pygame.K_RIGHT]:
+            player1_speed[0] = car_speed
+        if keys[pygame.K_UP]:
+            player1_speed[1] = -car_speed
+        if keys[pygame.K_DOWN]:
+            player1_speed[1] = car_speed
 
-    # Check for collision with walls
-    if ball_pos[0] <= BALL_RADIUS or ball_pos[0] >= WIDTH - BALL_RADIUS:
-        ball_velocity[0] = -ball_velocity[0]
-    if ball_pos[1] <= BALL_RADIUS or ball_pos[1] >= HEIGHT - BALL_RADIUS:
-        ball_velocity[1] = -ball_velocity[1]
+        # Player 2 controls (WASD)
+        if keys[pygame.K_a]:
+            player2_speed[0] = -car_speed
+        if keys[pygame.K_d]:
+            player2_speed[0] = car_speed
+        if keys[pygame.K_w]:
+            player2_speed[1] = -car_speed
+        if keys[pygame.K_s]:
+            player2_speed[1] = car_speed
 
-    # Check if the ball is in the hole
-    if calculate_distance(ball_pos, hole_pos) < HOLE_RADIUS:
-        show_message("Hole in One!", WHITE, (WIDTH // 2 - 100, HEIGHT // 2))
-        ball_velocity = [0, 0]
-        shooting = False
+        # Move players
+        player1.move_ip(*player1_speed)
+        player2.move_ip(*player2_speed)
 
-    # Power line
-    if not shooting and pygame.mouse.get_pressed()[0]:
-        current_pos = pygame.mouse.get_pos()
-        draw_power_line(start_pos, current_pos)
+        # Boundaries
+        player1.clamp_ip(screen.get_rect())
+        player2.clamp_ip(screen.get_rect())
 
+        # Check for finish line crossing
+        if player1.colliderect(finish_line):
+            winner_text("Player 1 Wins!")
+            return
+        if player2.colliderect(finish_line):
+            winner_text("Player 2 Wins!")
+            return
+
+        # Draw everything
+        screen.fill(WHITE)
+        pygame.draw.rect(screen, GREEN, finish_line)
+        pygame.draw.rect(screen, RED, player1)
+        pygame.draw.rect(screen, BLUE, player2)
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
+def winner_text(winner):
+    font = pygame.font.Font(None, 74)
+    text = font.render(winner, True, BLACK)
+    screen.fill(WHITE)
+    screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 - text.get_height() // 2))
     pygame.display.flip()
-    clock.tick(60)
+    pygame.time.wait(3000)
 
-pygame.quit()
-sys.exit()
+
+if __name__ == "__main__":
+    game_loop()
